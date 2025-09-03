@@ -211,6 +211,9 @@ void Lddc::PublishPointcloud2(LidarDataQueue *queue, uint8_t index) {
       printf("Publish point cloud2 failed, the pkg points is empty.\n");
       continue;
     }
+    if (lds_ && index < lds_->lidar_count_) {
+      lds_->lidars_[index].last_data_time = std::chrono::steady_clock::now();
+    }
 
     auto cloud = std::make_unique<PointCloud2>();
     uint64_t timestamp = 0;

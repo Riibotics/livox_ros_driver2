@@ -31,6 +31,7 @@
 #include <stdlib.h>
 
 #include <iostream>
+#include <chrono>
 #include <string>
 #include <vector>
 #include <memory>
@@ -290,6 +291,7 @@ typedef struct {
 
   uint32_t firmware_ver; /**< Firmware version of lidar  */
   UserLivoxLidarConfig livox_config;
+  std::chrono::steady_clock::time_point last_data_time; 
 } LidarDevice;
 
 constexpr uint32_t kMaxProductType = 10;

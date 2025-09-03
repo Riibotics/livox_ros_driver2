@@ -58,14 +58,32 @@ void DriverNode::updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& 
   status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "LiDAR Status OK");
 
   if (lddc_ptr_ && lddc_ptr_->lds_) {
-      status.add("Connected LiDARs", std::to_string(lddc_ptr_->lds_->lidar_count_));
-      for (uint32_t i = 0; i < lddc_ptr_->lds_->lidar_count_; ++i) {
+      int connected_lidar_count = 0;
+      for (uint32_t i = 0; i < kMaxSourceLidar; ++i) {
           const auto& lidar = lddc_ptr_->lds_->lidars_[i];
-          std::string lidar_id = "LiDAR_" + std::to_string(i);
+
+          if (lidar.handle == 0) continue;
+
+          connected_lidar_count++;
+          std::string lidar_id = "LiDAR_" + std::to_string(i) + 
+                                 (lidar.livox_config.sensor_id.empty() ? "" : "_" + lidar.livox_config.sensor_id);
           std::string ip_addr = livox_ros::IpNumToString(lidar.handle);
-          std::string state = (lidar.connect_state == kConnectStateSampling) ? "Sampling" : "Connected";
-          status.add(lidar_id, "IP: " + ip_addr + ", State: " + state);
+          std::string state_str;
+
+          if (lidar.connect_state != kConnectStateSampling) {
+              state_str = "Disconnected";
+          } else {
+              auto time_diff = std::chrono::steady_clock::now() - lidar.last_data_time;
+              if (time_diff > std::chrono::seconds(2)) {
+                  state_str = "Timeout";
+              } else {
+                  state_str = "Sampling";
+              }
+          }
+          status.add(lidar_id, "IP: " + ip_addr + ", State: " + state_str);
       }
+      status.add("Configured LiDARs", std::to_string(connected_lidar_count));
+
   } else {
       status.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN, "LDS not available");
   }
