@@ -132,6 +132,7 @@ typedef enum {
 
 typedef struct {
  uint8_t lidar_type {};
+ uint8_t lidar_count {};
 } LidarSummaryInfo;
 
 /** 8bytes stamp to uint64_t stamp */

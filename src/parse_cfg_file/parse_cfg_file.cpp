@@ -54,6 +54,14 @@ bool ParseCfgFile::ParseSummaryInfo(LidarSummaryInfo& lidar_summary_info) {
       break;
     }
     lidar_summary_info.lidar_type = static_cast<uint8_t>(object["lidar_type"].GetUint());
+
+    if (object.HasMember("lidar_count") && object["lidar_count"].IsUint()) {
+      lidar_summary_info.lidar_count = static_cast<uint8_t>(object["lidar_count"].GetUint());
+    } else {
+      lidar_summary_info.lidar_count = 0; 
+      std::cout << "Warning: 'lidar_count' not found in config. Will rely on array size." << std::endl;
+    }
+    
     std::fclose(raw_file);
     return true;
   } while (false);

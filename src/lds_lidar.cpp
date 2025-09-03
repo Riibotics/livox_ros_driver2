@@ -75,7 +75,6 @@ LdsLidar::~LdsLidar() {}
 void LdsLidar::ResetLdsLidar(void) { ResetLds(kSourceRawLidar); }
 
 
-
 bool LdsLidar::InitLdsLidar(const std::string& path_name) {
   if (is_initialized_) {
     printf("Lds is already inited!\n");
@@ -87,9 +86,30 @@ bool LdsLidar::InitLdsLidar(const std::string& path_name) {
   }
 
   path_ = path_name;
+
+  if (!ParseSummaryConfig()) {
+    return false;
+  }
+
+  if (lidar_summary_info_.lidar_count > 0 && lidar_summary_info_.lidar_count <= kMaxSourceLidar) {
+    this->lidar_count_ = lidar_summary_info_.lidar_count;
+  } else {
+    LivoxLidarConfigParser parser(path_);
+    std::vector<UserLivoxLidarConfig> user_configs;
+    if (parser.Parse(user_configs) && !user_configs.empty()) {
+        this->lidar_count_ = std::min(static_cast<uint8_t>(user_configs.size()), kMaxSourceLidar);
+        std::cout << "Fallback: Using lidar_configs array size for lidar_count." << std::endl;
+    } else {
+        this->lidar_count_ = 0; 
+        std::cout << "ERROR: No LiDARs configured in JSON file." << std::endl;
+    }
+  }
+  std::cout << "Lidar count is set to: " << static_cast<int>(this->lidar_count_) << std::endl;
+
   if (!InitLidars()) {
     return false;
   }
+
   SetLidarPubHandle();
   if (!Start()) {
     return false;

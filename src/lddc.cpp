@@ -125,7 +125,8 @@ void Lddc::DistributePointCloudData(void) {
     return;
   }
   
-  lds_->pcd_semaphore_.Wait();
+  // lds_->pcd_semaphore_.Wait();
+  lds_->pcd_semaphore_.TimedWait(500);
   for (uint32_t i = 0; i < lds_->lidar_count_; i++) {
     uint32_t lidar_id = i;
     LidarDevice *lidar = &lds_->lidars_[lidar_id];

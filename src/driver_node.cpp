@@ -40,7 +40,8 @@ DriverNode::~DriverNode() {
 
 void DriverNode::TickDiagnostic() {
   if (diagnostic_updater_) {
-    diagnostic_updater_->TickFrequencyStatus();
+    // diagnostic_updater_->TickFrequencyStatus(); // Considering Livox's frequency oscillation, disable this.
+    // @TODO(Riibotics) : How to handle frequency oscillation?
     last_published_steady_clock_ = std::chrono::steady_clock::now();
   }
 }
