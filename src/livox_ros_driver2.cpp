@@ -171,6 +171,18 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_activate(const rc
     DRIVER_ERROR(*this, "Invalid data src (%d), please check the launch file", data_src_);
   }
 
+  rii_common_utils::DiagnosticUpdaterBuilder builder(this);
+  diagnostic_updater_ = builder.SetPeriodInSec(0.5) // Check every 0.5 sec
+                           .SetHardwareID("Livox_MID360")
+                           .EnableStatusUpdate()
+                           .EnableFrequencyUpdate(publish_freq_)
+                           .RegisterCustomUpdaterFunction("LiDAR Status",
+                                                          std::bind(&DriverNode::updateLidarStatus, this, std::placeholders::_1))
+                           .Build();
+
+  last_published_steady_clock_ = std::chrono::steady_clock::now();
+
+
   pointclouddata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::PointCloudDataPollThread, this);
   imudata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::ImuDataPollThread, this);
   return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
@@ -197,8 +209,35 @@ RCLCPP_COMPONENTS_REGISTER_NODE(livox_ros::DriverNode)
 void DriverNode::PointCloudDataPollThread()
 {
   std::future_status status;
-  std::this_thread::sleep_for(std::chrono::seconds(3));
+  // Wait before start thread
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   do {
+    if (diagnostic_updater_) {
+      bool is_all_connected = true;
+      if (lddc_ptr_ && lddc_ptr_->lds_) {
+        for (uint32_t i = 0; i < lddc_ptr_->lds_->lidar_count_; ++i) {
+          if (lddc_ptr_->lds_->lidars_[i].connect_state != kConnectStateSampling) {
+            diagnostic_updater_->SetStatusERROR("LiDAR connection lost");
+            is_all_connected = false;
+            break;
+          }
+        }
+      } else {
+        diagnostic_updater_->SetStatusERROR("LDS not initialized");
+        is_all_connected = false;
+      }
+
+      if (!is_all_connected) {
+        diagnostic_updater_->SetStatusERROR("LiDAR connection lost");
+      } else if (std::chrono::steady_clock::now() - last_published_steady_clock_ > std::chrono::seconds(2)) {
+        diagnostic_updater_->SetStatusERROR("No data received (timeout)");
+      } else if (consecutive_empty_packets_ >= 3) {
+        diagnostic_updater_->SetStatusERROR("Empty packets received consecutively");
+      } else {
+        diagnostic_updater_->SetStatusOK("LiDAR data streaming");
+      }
+    }
+
     lddc_ptr_->DistributePointCloudData();
     status = future_.wait_for(std::chrono::microseconds(0));
   } while (status == std::future_status::timeout);

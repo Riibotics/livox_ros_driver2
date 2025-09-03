@@ -27,6 +27,8 @@
 
 #include "include/ros_headers.h"
 
+#include "rii_common_utils/diagnostic_updater.h" 
+
 namespace livox_ros {
 
 class Lddc;
@@ -61,11 +63,16 @@ class DriverNode final : public rii_common_utils::LifecycleNode {
 
   DriverNode& GetNode() noexcept;
 
+  void TickDiagnostic();
+  void UpdatePacketStatus(bool is_empty);
+
  protected:
   rii_common_utils::LifecycleNode::CallbackReturn on_configure(const rclcpp_lifecycle::State & state) override;
   rii_common_utils::LifecycleNode::CallbackReturn on_activate(const rclcpp_lifecycle::State & state) override;
   rii_common_utils::LifecycleNode::CallbackReturn on_deactivate(const rclcpp_lifecycle::State & state) override;
   rii_common_utils::LifecycleNode::CallbackReturn on_cleanup(const rclcpp_lifecycle::State & state) override;
+
+  void updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& status);
 
  private:
   void PointCloudDataPollThread();
@@ -84,6 +91,12 @@ class DriverNode final : public rii_common_utils::LifecycleNode {
   double publish_freq_; /* Hz */
   int output_type_;
   std::string frame_id_;
+
+  // Diagnostic updater
+  int consecutive_empty_packets_ = 0;
+  std::unique_ptr<rii_common_utils::DiagnosticUpdater> diagnostic_updater_;
+  std::chrono::steady_clock::time_point last_published_steady_clock_;
+
 };
 
 #endif

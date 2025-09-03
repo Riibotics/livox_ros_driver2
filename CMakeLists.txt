@@ -39,6 +39,7 @@ if(ROS_EDITION STREQUAL "ROS1")
     sensor_msgs
     std_msgs
     message_generation
+    rii_common_utils
     rosbag
     pcl_ros
   )

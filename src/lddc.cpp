@@ -202,6 +202,10 @@ void Lddc::PublishPointcloud2(LidarDataQueue *queue, uint8_t index) {
   while(!QueueIsEmpty(queue)) {
     StoragePacket pkg;
     QueuePop(queue, &pkg);
+
+    if (cur_node_) {
+      cur_node_->UpdatePacketStatus(pkg.points.empty());
+    }
     if (pkg.points.empty()) {
       printf("Publish point cloud2 failed, the pkg points is empty.\n");
       continue;
@@ -354,6 +358,9 @@ void Lddc::PublishPointcloud2Data(const uint8_t index, const uint64_t timestamp,
 
   if (kOutputToRos == output_type_) {
     publisher_ptr->publish(std::move(cloud)); 
+    if (cur_node_) {
+      cur_node_->TickDiagnostic();
+    }
   } else {
 #ifdef BUILDING_ROS1
     if (bag_ && enable_lidar_bag_) {

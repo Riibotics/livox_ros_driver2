@@ -38,6 +38,38 @@ DriverNode::~DriverNode() {
   imudata_poll_thread_->join();
 }
 
+void DriverNode::TickDiagnostic() {
+  if (diagnostic_updater_) {
+    diagnostic_updater_->TickFrequencyStatus();
+    last_published_steady_clock_ = std::chrono::steady_clock::now();
+  }
+}
+
+void DriverNode::UpdatePacketStatus(bool is_empty) {
+  if (is_empty) {
+      consecutive_empty_packets_++;
+  } else {
+      consecutive_empty_packets_ = 0;
+  }
+}
+
+void DriverNode::updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& status) {
+  status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "LiDAR Status OK");
+
+  if (lddc_ptr_ && lddc_ptr_->lds_) {
+      status.add("Connected LiDARs", std::to_string(lddc_ptr_->lds_->lidar_count_));
+      for (uint32_t i = 0; i < lddc_ptr_->lds_->lidar_count_; ++i) {
+          const auto& lidar = lddc_ptr_->lds_->lidars_[i];
+          std::string lidar_id = "LiDAR_" + std::to_string(i);
+          std::string ip_addr = livox_ros::IpNumToString(lidar.handle);
+          std::string state = (lidar.connect_state == kConnectStateSampling) ? "Sampling" : "Connected";
+          status.add(lidar_id, "IP: " + ip_addr + ", State: " + state);
+      }
+  } else {
+      status.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN, "LDS not available");
+  }
+}
+
 } // namespace livox_ros
 
 #include "rclcpp_components/register_node_macro.hpp"
