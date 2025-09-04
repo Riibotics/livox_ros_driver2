@@ -55,34 +55,50 @@ void DriverNode::UpdatePacketStatus(bool is_empty) {
 }
 
 void DriverNode::updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& status) {
-  status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "LiDAR Status OK");
+  status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "All LiDARs are streaming");
 
   if (lddc_ptr_ && lddc_ptr_->lds_) {
-      int connected_lidar_count = 0;
+      int configured_lidar_count = 0;
+      bool has_error = false;
+
       for (uint32_t i = 0; i < kMaxSourceLidar; ++i) {
           const auto& lidar = lddc_ptr_->lds_->lidars_[i];
 
           if (lidar.handle == 0) continue;
 
-          connected_lidar_count++;
+          configured_lidar_count++;
           std::string lidar_id = "LiDAR_" + std::to_string(i) + 
                                  (lidar.livox_config.sensor_id.empty() ? "" : "_" + lidar.livox_config.sensor_id);
           std::string ip_addr = livox_ros::IpNumToString(lidar.handle);
           std::string state_str;
+          bool current_lidar_ok = true;
 
           if (lidar.connect_state != kConnectStateSampling) {
               state_str = "Disconnected";
+              current_lidar_ok = false;
           } else {
               auto time_diff = std::chrono::steady_clock::now() - lidar.last_data_time;
               if (time_diff > std::chrono::seconds(2)) {
                   state_str = "Timeout";
+                  current_lidar_ok = false;
               } else {
                   state_str = "Sampling";
               }
           }
+
+          if (!current_lidar_ok) {
+              has_error = true;
+              RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                                    "LiDAR Error on IP %s: %s", ip_addr.c_str(), state_str.c_str());
+          }
+
           status.add(lidar_id, "IP: " + ip_addr + ", State: " + state_str);
       }
-      status.add("Configured LiDARs", std::to_string(connected_lidar_count));
+      status.add("Configured LiDARs", std::to_string(configured_lidar_count));
+
+      if (has_error) {
+        status.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR, "One or more LiDARs have an issue.");
+      }
 
   } else {
       status.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN, "LDS not available");
