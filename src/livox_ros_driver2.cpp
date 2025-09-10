@@ -213,24 +213,24 @@ void DriverNode::PointCloudDataPollThread()
   std::this_thread::sleep_for(std::chrono::seconds(1));
   do {
     if (diagnostic_updater_) {
-      bool is_all_connected = true;
+      bool is_all_ok = true;
       if (lddc_ptr_ && lddc_ptr_->lds_) {
         for (uint32_t i = 0; i < lddc_ptr_->lds_->lidar_count_; ++i) {
-          if (lddc_ptr_->lds_->lidars_[i].connect_state != kConnectStateSampling) {
-            diagnostic_updater_->SetStatusERROR("LiDAR connection lost");
-            is_all_connected = false;
+          const auto& lidar = lddc_ptr_->lds_->lidars_[i];
+
+          auto time_diff = std::chrono::steady_clock::now() - lidar.last_data_time;
+          if (time_diff > std::chrono::seconds(2)) {
+            diagnostic_updater_->SetStatusERROR("No data received (timeout)");
+            is_all_ok = false;
             break;
           }
         }
       } else {
         diagnostic_updater_->SetStatusERROR("LDS not initialized");
-        is_all_connected = false;
+        is_all_ok = false;
       }
 
-      if (!is_all_connected) {
-        diagnostic_updater_->SetStatusERROR("LiDAR connection lost");
-      } else if (std::chrono::steady_clock::now() - last_published_steady_clock_ > std::chrono::seconds(2)) {
-        diagnostic_updater_->SetStatusERROR("No data received (timeout)");
+      if (!is_all_ok) {
       } else if (consecutive_empty_packets_ >= 3) {
         diagnostic_updater_->SetStatusERROR("Empty packets received consecutively");
       } else {
