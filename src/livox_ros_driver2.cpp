@@ -189,11 +189,28 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_activate(const rc
 }
 
 rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_deactivate(const rclcpp_lifecycle::State & /*state*/) {
+  if (lddc_ptr_ && lddc_ptr_->lds_) {
+      lddc_ptr_->lds_->RequestExit();
+  }
+  exit_signal_.set_value();
+
+  if (pointclouddata_poll_thread_ && pointclouddata_poll_thread_->joinable()) {
+    pointclouddata_poll_thread_->join();
+  }
+  if (imudata_poll_thread_ && imudata_poll_thread_->joinable()) {
+    imudata_poll_thread_->join();
+  }
+  
   pointclouddata_poll_thread_.reset();
   imudata_poll_thread_.reset();
   lddc_ptr_.reset();
+
+  last_published_steady_clock_ = std::chrono::steady_clock::now();
+  diagnostic_updater_.reset();
+
   return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
 }
+
 
 rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_cleanup(const rclcpp_lifecycle::State & /*state*/) {
   return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
