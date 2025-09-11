@@ -119,6 +119,7 @@ DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
 : rii_common_utils::LifecycleNode("livox_driver_node", "", node_options)
 {
   DRIVER_INFO(*this, "Livox Ros Driver2 Version: %s", LIVOX_ROS_DRIVER2_VERSION_STRING);
+  future_ = exit_signal_.get_future();
 }
 rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_configure(const rclcpp_lifecycle::State & /*state*/) {
   DeclareAndGetParameter<int>("xfer_format", kPointCloud2Msg, xfer_format_);
@@ -139,7 +140,7 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_configure(const r
     publish_freq_ = publish_freq_;
   }
 
-  future_ = exit_signal_.get_future();
+  // future_ = exit_signal_.get_future();
 
   return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
 }
@@ -160,15 +161,20 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_activate(const rc
     this->get_parameter("cmdline_input_bd_code", cmdline_bd_code);
 
     LdsLidar *read_lidar = LdsLidar::GetInstance(publish_freq_);
+
+    read_lidar->CleanRequestExit();
+    
     lddc_ptr_->RegisterLds(static_cast<Lds *>(read_lidar));
 
     if ((read_lidar->InitLdsLidar(user_config_path))) {
       DRIVER_INFO(*this, "Init lds lidar success!");
     } else {
       DRIVER_ERROR(*this, "Init lds lidar fail!");
+      return rii_common_utils::LifecycleNode::CallbackReturn::FAILURE; 
     }
   } else {
     DRIVER_ERROR(*this, "Invalid data src (%d), please check the launch file", data_src_);
+    return rii_common_utils::LifecycleNode::CallbackReturn::FAILURE;
   }
 
   rii_common_utils::DiagnosticUpdaterBuilder builder(this);
@@ -200,19 +206,48 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_deactivate(const 
   if (imudata_poll_thread_ && imudata_poll_thread_->joinable()) {
     imudata_poll_thread_->join();
   }
-  
+
   pointclouddata_poll_thread_.reset();
   imudata_poll_thread_.reset();
-  lddc_ptr_.reset();
-
-  last_published_steady_clock_ = std::chrono::steady_clock::now();
-  diagnostic_updater_.reset();
 
   return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
 }
 
-
 rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_cleanup(const rclcpp_lifecycle::State & /*state*/) {
+
+  if (lddc_ptr_ && lddc_ptr_->lds_) {
+    LdsLidar* read_lidar = static_cast<LdsLidar*>(lddc_ptr_->lds_);
+    read_lidar->DeInitLdsLidar(); // SDK를 종료하지 않는 정리 함수 호출
+  }
+
+  lddc_ptr_.reset();
+  diagnostic_updater_.reset();
+
+  exit_signal_ = std::promise<void>();
+  future_ = exit_signal_.get_future();
+
+  return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
+}
+
+rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_shutdown(const rclcpp_lifecycle::State & /*state*/) {
+  RCLCPP_INFO(get_logger(), "Node is shutting down, finalizing SDK.");
+
+  if (pointclouddata_poll_thread_ && pointclouddata_poll_thread_->joinable()) {
+    exit_signal_.set_value();
+    pointclouddata_poll_thread_->join();
+  }
+  if (imudata_poll_thread_ && imudata_poll_thread_->joinable()) {
+    imudata_poll_thread_->join();
+  }
+
+  if (lddc_ptr_ && lddc_ptr_->lds_) {
+    LdsLidar* read_lidar = static_cast<LdsLidar*>(lddc_ptr_->lds_);
+    read_lidar->Finalize();
+  }
+
+  lddc_ptr_.reset();
+  diagnostic_updater_.reset();
+
   return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
 }
 }  // namespace livox_ros

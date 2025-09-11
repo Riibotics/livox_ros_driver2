@@ -71,6 +71,7 @@ class DriverNode final : public rii_common_utils::LifecycleNode {
   rii_common_utils::LifecycleNode::CallbackReturn on_activate(const rclcpp_lifecycle::State & state) override;
   rii_common_utils::LifecycleNode::CallbackReturn on_deactivate(const rclcpp_lifecycle::State & state) override;
   rii_common_utils::LifecycleNode::CallbackReturn on_cleanup(const rclcpp_lifecycle::State & state) override;
+  rii_common_utils::LifecycleNode::CallbackReturn on_shutdown(const rclcpp_lifecycle::State & state) override;
 
   void updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& status);
 

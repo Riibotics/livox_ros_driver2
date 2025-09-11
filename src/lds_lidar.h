@@ -51,6 +51,7 @@ class LdsLidar final : public Lds {
 
   bool InitLdsLidar(const std::string& path_name);
   bool Start();
+  void Finalize(void);
 
   int DeInitLdsLidar(void);
  private:

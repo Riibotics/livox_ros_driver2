@@ -215,17 +215,29 @@ bool LdsLidar::LivoxLidarStart() {
   return true;
 }
 
+void LdsLidar::Finalize(void) {
+  if (is_initialized_) {
+    if (lidar_summary_info_.lidar_type & kLivoxLidarType) {
+      LivoxLidarSdkUninit();
+      printf("Livox Lidar SDK Uninit completely!\n");
+    }
+    is_initialized_ = false;
+  }
+}
+
+// 기존 DeInitLdsLidar 함수 수정
 int LdsLidar::DeInitLdsLidar(void) {
   if (!is_initialized_) {
-    printf("LiDAR data source is not exit");
-    return -1;
+    printf("LiDAR data source is not initialized, nothing to de-init.\n");
+    return 0;
   }
+  
+  pub_handler().Uninit();
 
-  if (lidar_summary_info_.lidar_type & kLivoxLidarType) {
-    LivoxLidarSdkUninit();
-    printf("Livox Lidar SDK Deinit completely!\n");
-  }
+  ResetLdsLidar();
+  is_initialized_ = false;
 
+  printf("LdsLidar state cleaned up for reconfiguration.\n");
   return 0;
 }
 
