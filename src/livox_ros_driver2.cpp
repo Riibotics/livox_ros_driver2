@@ -33,6 +33,9 @@
 #include "driver_node.h"
 #include "lddc.h"
 #include "lds_lidar.h"
+#include "call_back/livox_lidar_callback.h"
+#include "livox_lidar_api.h"
+#include "livox_lidar_def.h"
 
 using namespace livox_ros;
 
@@ -217,7 +220,7 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_cleanup(const rcl
 
   if (lddc_ptr_ && lddc_ptr_->lds_) {
     LdsLidar* read_lidar = static_cast<LdsLidar*>(lddc_ptr_->lds_);
-    read_lidar->DeInitLdsLidar(); // SDK를 종료하지 않는 정리 함수 호출
+    read_lidar->DeInitLdsLidar();
   }
 
   lddc_ptr_.reset();

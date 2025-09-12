@@ -58,6 +58,8 @@ namespace livox_ros {
 /** For callback use only */
 LdsLidar *g_lds_ldiar = nullptr;
 
+std::atomic<bool> LdsLidar::sdk_is_initialized_{false};
+
 /** Global function for common use -------------------------------------------*/
 
 /** Lds lidar function -------------------------------------------------------*/
@@ -86,6 +88,8 @@ bool LdsLidar::InitLdsLidar(const std::string& path_name) {
   }
 
   path_ = path_name;
+
+  pub_handler().Init();
 
   if (!ParseSummaryConfig()) {
     return false;
@@ -132,11 +136,15 @@ bool LdsLidar::InitLidars() {
   return true;
 }
 
-
 bool LdsLidar::Start() {
   if (lidar_summary_info_.lidar_type & kLivoxLidarType) {
-    if (!LivoxLidarStart()) {
-      return false;
+    for (uint32_t i = 0; i < kMaxSourceLidar; ++i) {
+      if (lidars_[i].handle != 0 && lidars_[i].lidar_type == kLivoxLidarType) {
+        const uint32_t handle = lidars_[i].handle;
+        std::cout << "Activating LiDAR, handle: " << handle << std::endl;
+        SetLivoxLidarWorkMode(handle, kLivoxLidarNormal, LivoxLidarCallback::WorkModeChangedCallback, nullptr);
+        EnableLivoxLidarImuData(handle, LivoxLidarCallback::EnableLivoxLidarImuDataCallback, this);
+      }
     }
   }
   return true;
@@ -159,9 +167,14 @@ bool LdsLidar::InitLivoxLidar() {
   }
 
   // SDK initialization
-  if (!LivoxLidarSdkInit(path_.c_str())) {
-    std::cout << "Failed to init livox lidar sdk." << std::endl;
-    return false;
+  if (!sdk_is_initialized_) {
+    // SDK initialization
+    if (!LivoxLidarSdkInit(path_.c_str())) {
+      std::cout << "Failed to init livox lidar sdk." << std::endl;
+      return false;
+    }
+    SetLivoxLidarInfoChangeCallback(LivoxLidarCallback::LidarInfoChangeCallback, g_lds_ldiar);
+    sdk_is_initialized_ = true;
   }
 
   // fill in lidar devices
@@ -220,6 +233,7 @@ void LdsLidar::Finalize(void) {
     if (lidar_summary_info_.lidar_type & kLivoxLidarType) {
       LivoxLidarSdkUninit();
       printf("Livox Lidar SDK Uninit completely!\n");
+      sdk_is_initialized_ = false;
     }
     is_initialized_ = false;
   }

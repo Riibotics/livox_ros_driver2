@@ -39,6 +39,7 @@ PubHandler &pub_handler() {
 }
 
 void PubHandler::Init() {
+  is_quit_.store(false);
 }
 
 void PubHandler::Uninit() {

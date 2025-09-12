@@ -29,6 +29,7 @@
 
 #include <memory>
 #include <mutex>
+#include <atomic>
 #include <vector>
 
 #include "lds.h"
@@ -52,6 +53,7 @@ class LdsLidar final : public Lds {
   bool InitLdsLidar(const std::string& path_name);
   bool Start();
   void Finalize(void);
+  static std::atomic<bool> sdk_is_initialized_;
 
   int DeInitLdsLidar(void);
  private:

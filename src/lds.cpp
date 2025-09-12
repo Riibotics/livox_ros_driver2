@@ -54,10 +54,17 @@ Lds::~Lds() {
 }
 
 void Lds::ResetLidar(LidarDevice *lidar, uint8_t data_src) {
-  //cache_index_.ResetIndex(lidar);
+  if (lidar->handle != 0) {
+    cache_index_.ResetIndex(lidar);
+  }
+
   DeInitQueue(&lidar->data);
   lidar->imu_data.Clear();
 
+  memset(&lidar->livox_config, 0, sizeof(UserLivoxLidarConfig));
+  lidar->handle = 0;
+  lidar->firmware_ver = 0;
+  
   lidar->data_src = data_src;
   lidar->connect_state = kConnectStateOff;
 }
