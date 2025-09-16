@@ -61,13 +61,14 @@ void Lds::ResetLidar(LidarDevice *lidar, uint8_t data_src) {
   DeInitQueue(&lidar->data);
   lidar->imu_data.Clear();
 
-  memset(&lidar->livox_config, 0, sizeof(UserLivoxLidarConfig));
+  lidar->livox_config = UserLivoxLidarConfig{};
   lidar->handle = 0;
   lidar->firmware_ver = 0;
   
   lidar->data_src = data_src;
   lidar->connect_state = kConnectStateOff;
 }
+
 
 void Lds::SetLidarDataSrc(LidarDevice *lidar, uint8_t data_src) {
   lidar->data_src = data_src;

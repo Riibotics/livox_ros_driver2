@@ -140,8 +140,33 @@ bool LdsLidar::Start() {
   if (lidar_summary_info_.lidar_type & kLivoxLidarType) {
     for (uint32_t i = 0; i < kMaxSourceLidar; ++i) {
       if (lidars_[i].handle != 0 && lidars_[i].lidar_type == kLivoxLidarType) {
-        const uint32_t handle = lidars_[i].handle;
-        std::cout << "Activating LiDAR, handle: " << handle << std::endl;
+        LidarDevice *lidar_device = &lidars_[i];
+        const UserLivoxLidarConfig& config = lidar_device->livox_config;
+        const uint32_t handle = lidar_device->handle;
+
+        std::cout << "Re-configuring and activating LiDAR, handle: " << handle << std::endl;
+
+        std::lock_guard<std::mutex> lock(config_mutex_);
+
+        if (config.pcl_data_type != -1) {
+            SetLivoxLidarPclDataType(handle, static_cast<LivoxLidarPointDataType>(config.pcl_data_type), LivoxLidarCallback::SetDataTypeCallback, this);
+        }
+        if (config.pattern_mode != -1) {
+            SetLivoxLidarScanPattern(handle, static_cast<LivoxLidarScanPattern>(config.pattern_mode), LivoxLidarCallback::SetPatternModeCallback, this);
+        }
+        if (config.blind_spot_set != -1) {
+            SetLivoxLidarBlindSpot(handle, config.blind_spot_set, LivoxLidarCallback::SetBlindSpotCallback, this);
+        }
+        if (config.dual_emit_en != -1) {
+            SetLivoxLidarDualEmit(handle, (config.dual_emit_en != 0), LivoxLidarCallback::SetDualEmitCallback, this);
+        }
+
+        LivoxLidarInstallAttitude attitude {
+            config.extrinsic_param.roll, config.extrinsic_param.pitch, config.extrinsic_param.yaw,
+            config.extrinsic_param.x, config.extrinsic_param.y, config.extrinsic_param.z
+        };
+        SetLivoxLidarInstallAttitude(handle, &attitude, LivoxLidarCallback::SetAttitudeCallback, this);
+
         SetLivoxLidarWorkMode(handle, kLivoxLidarNormal, LivoxLidarCallback::WorkModeChangedCallback, nullptr);
         EnableLivoxLidarImuData(handle, LivoxLidarCallback::EnableLivoxLidarImuDataCallback, this);
       }
@@ -149,6 +174,7 @@ bool LdsLidar::Start() {
   }
   return true;
 }
+
 
 bool LdsLidar::ParseSummaryConfig() {
   return ParseCfgFile(path_).ParseSummaryInfo(lidar_summary_info_);
@@ -168,14 +194,14 @@ bool LdsLidar::InitLivoxLidar() {
 
   // SDK initialization
   if (!sdk_is_initialized_) {
-    // SDK initialization
     if (!LivoxLidarSdkInit(path_.c_str())) {
       std::cout << "Failed to init livox lidar sdk." << std::endl;
       return false;
     }
-    SetLivoxLidarInfoChangeCallback(LivoxLidarCallback::LidarInfoChangeCallback, g_lds_ldiar);
     sdk_is_initialized_ = true;
   }
+
+  SetLivoxLidarInfoChangeCallback(LivoxLidarCallback::LidarInfoChangeCallback, g_lds_ldiar);
 
   // fill in lidar devices
   for (auto& config : user_configs) {
@@ -239,7 +265,6 @@ void LdsLidar::Finalize(void) {
   }
 }
 
-// 기존 DeInitLdsLidar 함수 수정
 int LdsLidar::DeInitLdsLidar(void) {
   if (!is_initialized_) {
     printf("LiDAR data source is not initialized, nothing to de-init.\n");
@@ -247,11 +272,10 @@ int LdsLidar::DeInitLdsLidar(void) {
   }
   
   pub_handler().Uninit();
-
   ResetLdsLidar();
   is_initialized_ = false;
 
-  printf("LdsLidar state cleaned up for reconfiguration.\n");
+  printf("LdsLidar state cleaned up for reconfiguration. SDK remains initialized.\n");
   return 0;
 }
 
