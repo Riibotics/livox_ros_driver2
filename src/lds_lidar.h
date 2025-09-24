@@ -45,7 +45,6 @@ namespace livox_ros {
 class LdsLidar final : public Lds {
  public:
   static LdsLidar *GetInstance(double publish_freq) {
-    printf("LdsLidar *GetInstance\n");
     static LdsLidar lds_lidar(publish_freq);
     return &lds_lidar;
   }
@@ -53,9 +52,12 @@ class LdsLidar final : public Lds {
   bool InitLdsLidar(const std::string& path_name);
   bool Start();
   void Finalize(void);
-  static std::atomic<bool> sdk_is_initialized_;
+  static std::atomic<int> sdk_ref_count_;
 
   int DeInitLdsLidar(void);
+  void PrepareLidarExit(uint32_t handle); // 특정 LiDAR만 정리하는 함수
+  void StoragePointData(PointFrame* frame); // 함수 선언 추가
+
  private:
   LdsLidar(double publish_freq);
   LdsLidar(const LdsLidar &) = delete;

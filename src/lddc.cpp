@@ -124,7 +124,7 @@ void Lddc::DistributePointCloudData(void) {
     std::cout << "DistributePointCloudData is RequestExit" << std::endl;
     return;
   }
-  
+
   // lds_->pcd_semaphore_.Wait();
   lds_->pcd_semaphore_.TimedWait(500);
   for (uint32_t i = 0; i < lds_->lidar_count_; i++) {
@@ -134,7 +134,7 @@ void Lddc::DistributePointCloudData(void) {
     if ((kConnectStateSampling != lidar->connect_state) || (p_queue == nullptr)) {
       continue;
     }
-    PollingLidarPointCloudData(lidar_id, lidar);    
+    PollingLidarPointCloudData(lidar_id, lidar);
   }
 }
 
@@ -148,7 +148,11 @@ void Lddc::DistributeImuData(void) {
     return;
   }
   
-  lds_->imu_semaphore_.Wait();
+  // Use TimedWait to prevent blocking indefinitely
+  if (!lds_->imu_semaphore_.TimedWait(100)) { // 100ms timeout
+      return;
+  }
+
   for (uint32_t i = 0; i < lds_->lidar_count_; i++) {
     uint32_t lidar_id = i;
     LidarDevice *lidar = &lds_->lidars_[lidar_id];
@@ -361,7 +365,7 @@ void Lddc::PublishPointcloud2Data(const uint8_t index, const uint64_t timestamp,
 #endif
 
   if (kOutputToRos == output_type_) {
-    publisher_ptr->publish(std::move(cloud)); 
+    publisher_ptr->publish(std::move(cloud));
     if (cur_node_) {
       cur_node_->TickDiagnostic();
     }
@@ -463,7 +467,7 @@ void Lddc::InitPclMsg(const StoragePacket& pkg, PointCloud& cloud, uint64_t& tim
   cloud.header.stamp = timestamp / 1000.0;  // to pcl ros time stamp
 #elif defined BUILDING_ROS2
   std::cout << "warning: pcl::PointCloud is not supported in ROS2, "
-            << "please check code logic" 
+            << "please check code logic"
             << std::endl;
 #endif
   return;
@@ -488,7 +492,7 @@ void Lddc::FillPointsToPclMsg(const StoragePacket& pkg, PointCloud& pcl_msg) {
   }
 #elif defined BUILDING_ROS2
   std::cout << "warning: pcl::PointCloud is not supported in ROS2, "
-            << "please check code logic" 
+            << "please check code logic"
             << std::endl;
 #endif
   return;
@@ -506,14 +510,14 @@ void Lddc::PublishPclData(const uint8_t index, const uint64_t timestamp, const P
   }
 #elif defined BUILDING_ROS2
   std::cout << "warning: pcl::PointCloud is not supported in ROS2, "
-            << "please check code logic" 
+            << "please check code logic"
             << std::endl;
 #endif
   return;
 }
 
 void Lddc::InitImuMsg(const uint8_t& index, const ImuData& imu_data, ImuMsg& imu_msg, uint64_t& timestamp) {
-  
+
   std::string frame_id;
   if(use_multi_topic_){
     // Use namespace as frame_id
@@ -695,12 +699,12 @@ std::shared_ptr<rclcpp::PublisherBase> Lddc::GetCurrentPublisher(uint8_t handle)
   uint32_t queue_size = kMinEthPacketQueueSize;
   if (use_multi_topic_) {
     if (!private_pub_[handle]) {
-      
+
       std::string topic_name;
       if(lds_->lidars_[handle].livox_config.sensor_id.empty()){
         char name_str[48];
         memset(name_str, 0, sizeof(name_str));
-        
+
         std::string ip_string = IpNumToString(lds_->lidars_[handle].handle);
         snprintf(name_str, sizeof(name_str), "livox/lidar_%s",
             ReplacePeriodByUnderline(ip_string).c_str());
@@ -708,7 +712,7 @@ std::shared_ptr<rclcpp::PublisherBase> Lddc::GetCurrentPublisher(uint8_t handle)
       }else{
         topic_name = "/" + lds_->lidars_[handle].livox_config.sensor_id + "/livox/lidar";
       }
-      
+
       queue_size = queue_size * 2; // queue size is 64 for only one lidar
       private_pub_[handle] = CreatePublisher(transfer_format_, topic_name, queue_size);
     }
@@ -735,7 +739,7 @@ std::shared_ptr<rclcpp::PublisherBase> Lddc::GetCurrentImuPublisher(uint8_t hand
         snprintf(name_str, sizeof(name_str), "livox/imu_%s",
             ReplacePeriodByUnderline(ip_string).c_str());
         topic_name = std::string(name_str);
-        
+
       }else{
         topic_name = "/" + lds_->lidars_[handle].livox_config.sensor_id + "/livox/imu";
       }

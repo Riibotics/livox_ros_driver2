@@ -92,6 +92,7 @@ class DriverNode final : public rii_common_utils::LifecycleNode {
   double publish_freq_; /* Hz */
   int output_type_;
   std::string frame_id_;
+  uint32_t lidar_handle_ = 0; // LiDAR 핸들을 저장할 변수
 
   // Diagnostic updater
   int consecutive_empty_packets_ = 0;
