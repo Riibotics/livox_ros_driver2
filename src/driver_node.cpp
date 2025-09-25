@@ -239,6 +239,10 @@ void DriverNode::updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& 
               has_error = true;
               RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
                                     "LiDAR Error on IP %s: %s", ip_addr.c_str(), state_str.c_str());
+              diagnostic_updater_->SetStatusERROR("Lidar has a problem");
+          }
+          else {
+            diagnostic_updater_->SetStatusOK("OK");
           }
 
           status.add(lidar_id, "IP: " + ip_addr + ", State: " + state_str);
