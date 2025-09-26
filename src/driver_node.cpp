@@ -122,6 +122,16 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_activate(const rc
 
   last_published_steady_clock_ = std::chrono::steady_clock::now();
 
+  if (pointclouddata_poll_thread_ && pointclouddata_poll_thread_->joinable()) {
+    pointclouddata_poll_thread_->join();
+  }
+  if (imudata_poll_thread_ && imudata_poll_thread_->joinable()) {
+    imudata_poll_thread_->join();
+  }
+
+  exit_signal_ = std::promise<void>();
+  future_ = exit_signal_.get_future();
+
   pointclouddata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::PointCloudDataPollThread, this);
   imudata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::ImuDataPollThread, this);
   return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
