@@ -23,6 +23,7 @@
 //
 
 #include "parse_cfg_file.h"
+#include "comm/comm.h"
 
 #include <iostream>
 #include <cstdio>
@@ -56,7 +57,14 @@ bool ParseCfgFile::ParseSummaryInfo(LidarSummaryInfo& lidar_summary_info) {
     lidar_summary_info.lidar_type = static_cast<uint8_t>(object["lidar_type"].GetUint());
 
     if (object.HasMember("lidar_count") && object["lidar_count"].IsUint()) {
-      lidar_summary_info.lidar_count = static_cast<uint8_t>(object["lidar_count"].GetUint());
+      const uint32_t n = object["lidar_count"].GetUint();
+      if (n >= 1 && n <= kMaxSourceLidar) {
+        lidar_summary_info.lidar_count = static_cast<uint8_t>(n);
+      } else {
+        std::cout << "Warning: 'lidar_count' is out of range [1, " << kMaxSourceLidar
+                  << "]. Will rely on array size." << std::endl;
+        lidar_summary_info.lidar_count = 0; // Will rely on array size
+      }
     } else {
       lidar_summary_info.lidar_count = 0; 
       std::cout << "Warning: 'lidar_count' not found in config. Will rely on array size." << std::endl;

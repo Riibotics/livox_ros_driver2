@@ -230,9 +230,21 @@ void Lddc::PublishCustomPointcloud(LidarDataQueue *queue, uint8_t index) {
   while(!QueueIsEmpty(queue)) {
     StoragePacket pkg;
     QueuePop(queue, &pkg);
+    if (cur_node_) {
+      cur_node_->UpdatePacketStatus(pkg.points.empty());
+    }
+
     if (pkg.points.empty()) {
       printf("Publish custom point cloud failed, the pkg points is empty.\n");
       continue;
+    }
+
+    if (lds_ && index < lds_->lidar_count_) {
+      const auto now_ns = static_cast<uint64_t>(
+          std::chrono::duration_cast<std::chrono::nanoseconds>(
+              std::chrono::steady_clock::now().time_since_epoch())
+              .count());
+      lds_->lidars_[index].last_data_time = std::chrono::steady_clock::now();
     }
 
     auto livox_msg = std::make_unique<CustomMsg>();
@@ -446,6 +458,9 @@ void Lddc::PublishCustomPointData(std::unique_ptr<CustomMsg> livox_msg, const ui
 
   if (kOutputToRos == output_type_) {
     publisher_ptr->publish(std::move(livox_msg));
+    if (cur_node_) {
+      cur_node_->TickDiagnostic();
+    }
   } else {
 #ifdef BUILDING_ROS1
     if (bag_ && enable_lidar_bag_) {
