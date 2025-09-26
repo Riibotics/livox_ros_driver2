@@ -128,7 +128,9 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_activate(const rc
 }
 
 rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_deactivate(const rclcpp_lifecycle::State & /*state*/) {
-  exit_signal_.set_value(); // 자신의 스레드에 종료 신호 전송
+  if (future_.valid() && future_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+    exit_signal_.set_value();
+  }
 
   if (lddc_ptr_ && lddc_ptr_->lds_) {
       lddc_ptr_->lds_->pcd_semaphore_.Signal();

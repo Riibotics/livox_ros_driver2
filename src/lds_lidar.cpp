@@ -30,6 +30,8 @@
 #include <mutex>
 #include <thread>
 #include <map>
+#include <iostream>
+#include <algorithm>
 #include <chrono>
 
 #ifdef WIN32
@@ -105,6 +107,7 @@ bool LdsLidar::InitLdsLidar(const std::string& path_name) {
     } else {
         this->lidar_count_ = 0; 
         std::cout << "ERROR: No LiDARs configured in JSON file." << std::endl;
+        return false;
     }
   }
   std::cout << "Lidar count is set to: " << static_cast<int>(this->lidar_count_) << std::endl;
