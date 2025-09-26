@@ -317,7 +317,7 @@ void LdsLidar::PrepareLidarExit(uint32_t handle) {
           lidar->data.wr_idx = 0;
       }
       lidar->imu_data.Clear();
-      lidar->connect_state = kConnectStateOff;
+      lidar->connect_state.store(kConnectStateOff, std::memory_order_release);
     }
   } else {
       printf("PrepareLidarExit failed: could not find index for handle %u\n", handle);

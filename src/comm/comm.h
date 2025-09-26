@@ -33,6 +33,7 @@
 #include <iostream>
 #include <chrono>
 #include <string>
+#include <atomic>
 #include <vector>
 #include <memory>
 #include <map>
@@ -283,7 +284,7 @@ typedef struct {
   //   uint8_t handle : 4;  // handle for LivoxLidarType::kIndustryLidarType
   // };
   uint8_t data_src;                  /**< From raw lidar or livox file. */
-  volatile LidarConnectState connect_state;
+  std::atomic<LidarConnectState> connect_state{kConnectStateOff};
   // DeviceInfo info;
 
   LidarDataQueue data;
@@ -291,7 +292,7 @@ typedef struct {
 
   uint32_t firmware_ver; /**< Firmware version of lidar  */
   UserLivoxLidarConfig livox_config;
-  std::chrono::steady_clock::time_point last_data_time; 
+  std::atomic<uint64_t> last_data_ns{0};
 } LidarDevice;
 
 constexpr uint32_t kMaxProductType = 10;

@@ -209,9 +209,9 @@ void DriverNode::TickDiagnostic() {
 
 void DriverNode::UpdatePacketStatus(bool is_empty) {
   if (is_empty) {
-      consecutive_empty_packets_++;
+      consecutive_empty_packets_.fetch_add(1, std::memory_order_relaxed);
   } else {
-      consecutive_empty_packets_ = 0;
+      consecutive_empty_packets_.store(0, std::memory_order_relaxed);
   }
 }
 
@@ -234,11 +234,13 @@ void DriverNode::updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& 
           std::string state_str;
           bool current_lidar_ok = true;
 
-          if (lidar.connect_state != kConnectStateSampling) {
+          if (lidar.connect_state.load(std::memory_order_acquire) != kConnectStateSampling) {
               state_str = "Disconnected";
               current_lidar_ok = false;
           } else {
-              auto time_diff = std::chrono::steady_clock::now() - lidar.last_data_time;
+              const uint64_t last_ns = lidar.last_data_ns.load(std::memory_order_relaxed);
+              const auto last_tp = std::chrono::steady_clock::time_point(std::chrono::nanoseconds(last_ns));
+              auto time_diff = std::chrono::steady_clock::now() - last_tp;
               if (time_diff > std::chrono::seconds(2)) {
                   state_str = "Timeout";
                   current_lidar_ok = false;

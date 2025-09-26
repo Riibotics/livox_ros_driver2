@@ -131,7 +131,8 @@ void Lddc::DistributePointCloudData(void) {
     uint32_t lidar_id = i;
     LidarDevice *lidar = &lds_->lidars_[lidar_id];
     LidarDataQueue *p_queue = &lidar->data;
-    if ((kConnectStateSampling != lidar->connect_state) || (p_queue == nullptr)) {
+
+    if ((kConnectStateSampling != lidar->connect_state.load(std::memory_order_acquire)) || (p_queue == nullptr)) {
       continue;
     }
     PollingLidarPointCloudData(lidar_id, lidar);
@@ -157,7 +158,7 @@ void Lddc::DistributeImuData(void) {
     uint32_t lidar_id = i;
     LidarDevice *lidar = &lds_->lidars_[lidar_id];
     LidarImuDataQueue *p_queue = &lidar->imu_data;
-    if ((kConnectStateSampling != lidar->connect_state) || (p_queue == nullptr)) {
+    if ((kConnectStateSampling != lidar->connect_state.load(std::memory_order_acquire)) || (p_queue == nullptr)) {
       continue;
     }
     PollingLidarImuData(lidar_id, lidar);
@@ -216,7 +217,11 @@ void Lddc::PublishPointcloud2(LidarDataQueue *queue, uint8_t index) {
       continue;
     }
     if (lds_ && index < lds_->lidar_count_) {
-      lds_->lidars_[index].last_data_time = std::chrono::steady_clock::now();
+      const auto now_ns = static_cast<uint64_t>(
+          std::chrono::duration_cast<std::chrono::nanoseconds>(
+              std::chrono::steady_clock::now().time_since_epoch())
+              .count());
+      lds_->lidars_[index].last_data_ns.store(now_ns, std::memory_order_relaxed);
     }
 
     auto cloud = std::make_unique<PointCloud2>();
@@ -244,7 +249,7 @@ void Lddc::PublishCustomPointcloud(LidarDataQueue *queue, uint8_t index) {
           std::chrono::duration_cast<std::chrono::nanoseconds>(
               std::chrono::steady_clock::now().time_since_epoch())
               .count());
-      lds_->lidars_[index].last_data_time = std::chrono::steady_clock::now();
+      lds_->lidars_[index].last_data_ns.store(now_ns, std::memory_order_relaxed);
     }
 
     auto livox_msg = std::make_unique<CustomMsg>();

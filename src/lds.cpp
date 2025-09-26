@@ -66,7 +66,7 @@ void Lds::ResetLidar(LidarDevice *lidar, uint8_t data_src) {
   lidar->firmware_ver = 0;
   
   lidar->data_src = data_src;
-  lidar->connect_state = kConnectStateOff;
+  lidar->connect_state.store(kConnectStateOff, std::memory_order_release);
 }
 
 
@@ -147,7 +147,7 @@ void Lds::StorageLvxPointData(PointFrame* frame) {
       continue;
     }
 
-    lidars_[index].connect_state = kConnectStateSampling;
+    lidars_[index].connect_state.store(kConnectStateSampling, std::memory_order_release);
 
     PushLidarData(&lidar_point, index, base_time);
   }
