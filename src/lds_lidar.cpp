@@ -270,16 +270,12 @@ void LdsLidar::Finalize(void) {
 }
 
 int LdsLidar::DeInitLdsLidar(void) {
-  if (!is_initialized_) {
-    printf("LiDAR data source is not initialized, nothing to de-init.\n");
-    return 0;
-  }
-  
+  // Always attempt full shutdown; keep it idempotent.
+  Finalize(); // Ensure Livox SDK is uninitialized
   pub_handler().Uninit();
   ResetLdsLidar();
   is_initialized_ = false;
-
-  printf("LdsLidar state cleaned up for reconfiguration. SDK remains initialized.\n");
+  printf("LdsLidar state cleaned up for reconfiguration.\n");
   return 0;
 }
 
