@@ -40,7 +40,10 @@ DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
 
 DriverNode::~DriverNode() {
   // Signal threads to exit in case of unexpected shutdown
-  exit_signal_.set_value();
+  if (future_.valid() &&
+    future_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+    exit_signal_.set_value();
+  }
 
   if (pointclouddata_poll_thread_ && pointclouddata_poll_thread_->joinable()) {
     pointclouddata_poll_thread_->join();
@@ -166,9 +169,8 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_cleanup(const rcl
   if (lddc_ptr_ && lddc_ptr_->lds_) {
     LdsLidar* read_lidar = static_cast<LdsLidar*>(lddc_ptr_->lds_);
     read_lidar->PrepareLidarExit(lidar_handle_);
-    read_lidar->Finalize(); // SDK 참조 카운터 감소
+    read_lidar->Finalize();
   }
-
   lddc_ptr_.reset();
   diagnostic_updater_.reset();
 

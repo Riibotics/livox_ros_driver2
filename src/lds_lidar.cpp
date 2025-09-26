@@ -270,12 +270,16 @@ void LdsLidar::Finalize(void) {
 }
 
 int LdsLidar::DeInitLdsLidar(void) {
-  // Always attempt full shutdown; keep it idempotent.
-  Finalize(); // Ensure Livox SDK is uninitialized
+  if (!is_initialized_) {
+    printf("LiDAR data source is not initialized, nothing to de-init.\n");
+    return 0;
+  }
+  
   pub_handler().Uninit();
   ResetLdsLidar();
   is_initialized_ = false;
-  printf("LdsLidar state cleaned up for reconfiguration.\n");
+
+  printf("LdsLidar state cleaned up for reconfiguration. SDK remains initialized.\n");
   return 0;
 }
 
@@ -317,7 +321,7 @@ void LdsLidar::PrepareLidarExit(uint32_t handle) {
           lidar->data.wr_idx = 0;
       }
       lidar->imu_data.Clear();
-      lidar->connect_state.store(kConnectStateOff, std::memory_order_release);
+      lidar->connect_state = kConnectStateOff;
     }
   } else {
       printf("PrepareLidarExit failed: could not find index for handle %u\n", handle);
