@@ -57,9 +57,9 @@ bool ParseCfgFile::ParseSummaryInfo(LidarSummaryInfo& lidar_summary_info) {
     lidar_summary_info.lidar_type = static_cast<uint8_t>(object["lidar_type"].GetUint());
 
     if (object.HasMember("lidar_count") && object["lidar_count"].IsUint()) {
-      const uint32_t n = object["lidar_count"].GetUint();
-      if (n >= 1 && n <= kMaxSourceLidar) {
-        lidar_summary_info.lidar_count = static_cast<uint8_t>(n);
+      const uint32_t number_of_lidars = object["lidar_count"].GetUint();
+      if (number_of_lidars >= 1 && number_of_lidars <= kMaxSourceLidar) {
+        lidar_summary_info.lidar_count = static_cast<uint8_t>(number_of_lidars);
       } else {
         std::cout << "Warning: 'lidar_count' is out of range [1, " << kMaxSourceLidar
                   << "]. Will rely on array size." << std::endl;
