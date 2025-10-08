@@ -149,7 +149,7 @@ void Lddc::DistributeImuData(void) {
     return;
   }
   
-  // Use TimedWait to prevent blocking indefinitely
+  // Use TimedWait to prevent blocking infinitely
   if (!lds_->imu_semaphore_.TimedWait(100)) { // 100ms timeout
       return;
   }
