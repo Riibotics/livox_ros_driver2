@@ -272,7 +272,7 @@ void LivoxLidarCallback::SetAttitudeCallback(livox_status status, uint32_t handl
               << ", try again..." << std::endl;
     const UserLivoxLidarConfig& config = lidar_device->livox_config;
     
-    static LivoxLidarInstallAttitude attitude;
+    LivoxLidarInstallAttitude attitude;
     attitude = {
       config.extrinsic_param.roll,
       config.extrinsic_param.pitch,
