@@ -260,7 +260,7 @@ void DriverNode::updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& 
         status.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR, "One or more LiDARs have an issue.");
       }
   } else {
-      status.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN, "LDS not available");
+      status.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR, "LDS not available");
   }
 }
 
