@@ -97,8 +97,6 @@ class DriverNode final : public rii_common_utils::LifecycleNode {
   // Diagnostic updater
   std::atomic<int> consecutive_empty_packets_{0};
   std::unique_ptr<rii_common_utils::DiagnosticUpdater> diagnostic_updater_;
-  std::chrono::steady_clock::time_point last_published_steady_clock_;
-
 };
 
 #endif

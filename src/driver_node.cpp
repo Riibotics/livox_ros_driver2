@@ -123,7 +123,6 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_activate(const rc
                                                           std::bind(&DriverNode::updateLidarStatus, this, std::placeholders::_1))
                            .Build();
 
-  last_published_steady_clock_ = std::chrono::steady_clock::now();
 
   if (pointclouddata_poll_thread_ && pointclouddata_poll_thread_->joinable()) {
     pointclouddata_poll_thread_->join();
@@ -206,7 +205,6 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_shutdown(const rc
 void DriverNode::TickDiagnostic() {
   if (diagnostic_updater_) {
     diagnostic_updater_->TickFrequencyStatus();
-    last_published_steady_clock_ = std::chrono::steady_clock::now();
   }
 }
 
