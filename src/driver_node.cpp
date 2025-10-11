@@ -208,14 +208,6 @@ void DriverNode::TickDiagnostic() {
   }
 }
 
-void DriverNode::UpdatePacketStatus(bool is_empty) {
-  if (is_empty) {
-      consecutive_empty_packets_.fetch_add(1, std::memory_order_relaxed);
-  } else {
-      consecutive_empty_packets_.store(0, std::memory_order_relaxed);
-  }
-}
-
 void DriverNode::updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& status) {
   status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "All LiDARs are streaming");
 

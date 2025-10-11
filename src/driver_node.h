@@ -64,7 +64,6 @@ class DriverNode final : public rii_common_utils::LifecycleNode {
   DriverNode& GetNode() noexcept;
 
   void TickDiagnostic();
-  void UpdatePacketStatus(bool is_empty);
 
  protected:
   rii_common_utils::LifecycleNode::CallbackReturn on_configure(const rclcpp_lifecycle::State & state) override;

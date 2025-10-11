@@ -210,9 +210,6 @@ void Lddc::PublishPointcloud2(LidarDataQueue *queue, uint8_t index) {
     StoragePacket pkg;
     QueuePop(queue, &pkg);
 
-    if (cur_node_) {
-      cur_node_->UpdatePacketStatus(pkg.points.empty());
-    }
     if (pkg.points.empty()) {
       printf("Publish point cloud2 failed, the pkg points is empty.\n");
       continue;
@@ -236,9 +233,6 @@ void Lddc::PublishCustomPointcloud(LidarDataQueue *queue, uint8_t index) {
   while(!QueueIsEmpty(queue)) {
     StoragePacket pkg;
     QueuePop(queue, &pkg);
-    if (cur_node_) {
-      cur_node_->UpdatePacketStatus(pkg.points.empty());
-    }
 
     if (pkg.points.empty()) {
       printf("Publish custom point cloud failed, the pkg points is empty.\n");
