@@ -94,7 +94,6 @@ class DriverNode final : public rii_common_utils::LifecycleNode {
   uint32_t lidar_handle_ = 0; // LiDAR 핸들을 저장할 변수
 
   // Diagnostic updater
-  std::atomic<int> consecutive_empty_packets_{0};
   std::unique_ptr<rii_common_utils::DiagnosticUpdater> diagnostic_updater_;
 };
 
