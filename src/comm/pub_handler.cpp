@@ -39,6 +39,7 @@ PubHandler &pub_handler() {
 }
 
 void PubHandler::Init() {
+  is_quit_.store(false);
 }
 
 void PubHandler::Uninit() {
@@ -49,13 +50,16 @@ void PubHandler::Uninit() {
 
   RequestExit();
 
-  if (point_process_thread_ &&
-    point_process_thread_->joinable()) {
+  if (point_process_thread_ && point_process_thread_->joinable()) {
     point_process_thread_->join();
     point_process_thread_ = nullptr;
-  } else {
-    /* */
   }
+  
+  std::unique_lock<std::mutex> lock(packet_mutex_);
+  raw_packet_queue_.clear();
+  lidar_process_handlers_.clear();
+  points_.clear();
+  lidar_extrinsics_.clear();
 }
 
 void PubHandler::RequestExit() {

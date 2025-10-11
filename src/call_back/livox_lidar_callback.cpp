@@ -271,7 +271,9 @@ void LivoxLidarCallback::SetAttitudeCallback(livox_status status, uint32_t handl
     std::cout << "set lidar attitude timeout, ip: " << IpNumToString(handle)
               << ", try again..." << std::endl;
     const UserLivoxLidarConfig& config = lidar_device->livox_config;
-    LivoxLidarInstallAttitude attitude {
+    
+    LivoxLidarInstallAttitude attitude;
+    attitude = {
       config.extrinsic_param.roll,
       config.extrinsic_param.pitch,
       config.extrinsic_param.yaw,

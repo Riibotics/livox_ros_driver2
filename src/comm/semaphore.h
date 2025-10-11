@@ -36,6 +36,7 @@ class Semaphore {
   }
   void Signal();
   void Wait();
+  bool TimedWait(int timeout_ms);
   int GetCount() {
     return count_;
   }

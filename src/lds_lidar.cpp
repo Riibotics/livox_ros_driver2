@@ -29,6 +29,10 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <map>
+#include <iostream>
+#include <algorithm>
+#include <chrono>
 
 #ifdef WIN32
 #include <winsock2.h>
@@ -58,7 +62,12 @@ namespace livox_ros {
 /** For callback use only */
 LdsLidar *g_lds_ldiar = nullptr;
 
+std::atomic<int> LdsLidar::sdk_ref_count_{0};
+
 /** Global function for common use -------------------------------------------*/
+static std::map<uint32_t, std::chrono::steady_clock::time_point> last_error_log_time;
+static std::mutex log_mutex;
+
 
 /** Lds lidar function -------------------------------------------------------*/
 LdsLidar::LdsLidar(double publish_freq)
@@ -75,21 +84,38 @@ LdsLidar::~LdsLidar() {}
 void LdsLidar::ResetLdsLidar(void) { ResetLds(kSourceRawLidar); }
 
 
-
 bool LdsLidar::InitLdsLidar(const std::string& path_name) {
-  if (is_initialized_) {
-    printf("Lds is already inited!\n");
-    return false;
-  }
-
   if (g_lds_ldiar == nullptr) {
     g_lds_ldiar = this;
   }
 
   path_ = path_name;
+
+  pub_handler().Init();
+
+  if (!ParseSummaryConfig()) {
+    return false;
+  }
+
+  if (lidar_summary_info_.lidar_count > 0 && lidar_summary_info_.lidar_count <= kMaxSourceLidar) {
+    this->lidar_count_ = lidar_summary_info_.lidar_count;
+  } else {
+    LivoxLidarConfigParser parser(path_);
+    std::vector<UserLivoxLidarConfig> user_configs;
+    if (parser.Parse(user_configs) && !user_configs.empty()) {
+        this->lidar_count_ = std::min(static_cast<uint8_t>(user_configs.size()), kMaxSourceLidar);
+    } else {
+        this->lidar_count_ = 0; 
+        std::cout << "ERROR: No LiDARs configured in JSON file." << std::endl;
+        return false;
+    }
+  }
+  std::cout << "Lidar count is set to: " << static_cast<int>(this->lidar_count_) << std::endl;
+
   if (!InitLidars()) {
     return false;
   }
+
   SetLidarPubHandle();
   if (!Start()) {
     return false;
@@ -112,15 +138,45 @@ bool LdsLidar::InitLidars() {
   return true;
 }
 
-
 bool LdsLidar::Start() {
   if (lidar_summary_info_.lidar_type & kLivoxLidarType) {
-    if (!LivoxLidarStart()) {
-      return false;
+    for (uint32_t i = 0; i < kMaxSourceLidar; ++i) {
+      if (lidars_[i].handle != 0 && lidars_[i].lidar_type == kLivoxLidarType) {
+        LidarDevice *lidar_device = &lidars_[i];
+        const UserLivoxLidarConfig& config = lidar_device->livox_config;
+        const uint32_t handle = lidar_device->handle;
+
+        std::cout << "Re-configuring and activating LiDAR, handle: " << handle << std::endl;
+
+        std::lock_guard<std::mutex> lock(config_mutex_);
+
+        if (config.pcl_data_type != -1) {
+            SetLivoxLidarPclDataType(handle, static_cast<LivoxLidarPointDataType>(config.pcl_data_type), LivoxLidarCallback::SetDataTypeCallback, this);
+        }
+        if (config.pattern_mode != -1) {
+            SetLivoxLidarScanPattern(handle, static_cast<LivoxLidarScanPattern>(config.pattern_mode), LivoxLidarCallback::SetPatternModeCallback, this);
+        }
+        if (config.blind_spot_set != -1) {
+            SetLivoxLidarBlindSpot(handle, config.blind_spot_set, LivoxLidarCallback::SetBlindSpotCallback, this);
+        }
+        if (config.dual_emit_en != -1) {
+            SetLivoxLidarDualEmit(handle, (config.dual_emit_en != 0), LivoxLidarCallback::SetDualEmitCallback, this);
+        }
+
+        LivoxLidarInstallAttitude attitude {
+            config.extrinsic_param.roll, config.extrinsic_param.pitch, config.extrinsic_param.yaw,
+            config.extrinsic_param.x, config.extrinsic_param.y, config.extrinsic_param.z
+        };
+        SetLivoxLidarInstallAttitude(handle, &attitude, LivoxLidarCallback::SetAttitudeCallback, this);
+
+        SetLivoxLidarWorkMode(handle, kLivoxLidarNormal, LivoxLidarCallback::WorkModeChangedCallback, nullptr);
+        EnableLivoxLidarImuData(handle, LivoxLidarCallback::EnableLivoxLidarImuDataCallback, this);
+      }
     }
   }
   return true;
 }
+
 
 bool LdsLidar::ParseSummaryConfig() {
   return ParseCfgFile(path_).ParseSummaryInfo(lidar_summary_info_);
@@ -139,10 +195,18 @@ bool LdsLidar::InitLivoxLidar() {
   }
 
   // SDK initialization
-  if (!LivoxLidarSdkInit(path_.c_str())) {
-    std::cout << "Failed to init livox lidar sdk." << std::endl;
-    return false;
+  if (sdk_ref_count_.fetch_add(1) == 0) {
+    if (!LivoxLidarSdkInit(path_.c_str())) {
+      std::cout << "Failed to init livox lidar sdk." << std::endl;
+      sdk_ref_count_.fetch_sub(1); // Rollback on failure
+      return false;
+    }
+    std::cout << "Livox Lidar SDK Initialized." << std::endl;
+  } else {
+    std::cout << "Livox Lidar SDK already initialized, ref count: " << sdk_ref_count_.load() << std::endl;
   }
+
+  SetLivoxLidarInfoChangeCallback(LivoxLidarCallback::LidarInfoChangeCallback, g_lds_ldiar);
 
   // fill in lidar devices
   for (auto& config : user_configs) {
@@ -195,18 +259,73 @@ bool LdsLidar::LivoxLidarStart() {
   return true;
 }
 
+void LdsLidar::Finalize(void) {
+  if (sdk_ref_count_.load() > 0) {
+    if (sdk_ref_count_.fetch_sub(1) == 1) {
+      LivoxLidarSdkUninit();
+      printf("Livox Lidar SDK Uninit completely!\n");
+    }
+    is_initialized_ = false;
+  }
+}
+
 int LdsLidar::DeInitLdsLidar(void) {
   if (!is_initialized_) {
-    printf("LiDAR data source is not exit");
-    return -1;
+    printf("LiDAR data source is not initialized, nothing to de-init.\n");
+    return 0;
   }
+  
+  pub_handler().Uninit();
+  ResetLdsLidar();
+  is_initialized_ = false;
 
-  if (lidar_summary_info_.lidar_type & kLivoxLidarType) {
-    LivoxLidarSdkUninit();
-    printf("Livox Lidar SDK Deinit completely!\n");
-  }
-
+  printf("LdsLidar state cleaned up for reconfiguration. SDK remains initialized.\n");
   return 0;
+}
+
+void LdsLidar::StoragePointData(PointFrame* frame) {
+  if (frame == nullptr) {
+    return;
+  }
+
+  uint8_t lidar_number = frame->lidar_num;
+  for (uint i = 0; i < lidar_number; ++i) {
+    PointPacket& lidar_point = frame->lidar_point[i];
+    uint64_t base_time = frame->base_time[i];
+
+    uint8_t index = 0;
+    int8_t ret = cache_index_.GetIndex(lidar_point.lidar_type, lidar_point.handle, index);
+    if (ret != 0) {
+        std::lock_guard<std::mutex> lock(log_mutex);
+        auto now = std::chrono::steady_clock::now();
+        if (last_error_log_time.find(lidar_point.handle) == last_error_log_time.end() ||
+            std::chrono::duration_cast<std::chrono::seconds>(now - last_error_log_time[lidar_point.handle]).count() >= 2) {
+            printf("Storage point data failed, can not get index, lidar type:%u, handle:%u.\n", lidar_point.lidar_type, lidar_point.handle);
+            last_error_log_time[lidar_point.handle] = now;
+        }
+        continue;
+    }
+    PushLidarData(&lidar_point, index, base_time);
+  }
+}
+
+void LdsLidar::PrepareLidarExit(uint32_t handle) {
+  uint8_t index = 0;
+  int8_t ret = cache_index_.GetIndex(kLivoxLidarType, handle, index);
+  if (ret == 0 && index < kMaxSourceLidar) {
+    LidarDevice* lidar = &lidars_[index];
+    if (lidar->handle == handle) {
+      printf("Preparing to exit for LiDAR handle: %u at index %d\n", handle, index);
+      if (lidar->data.storage_packet) {
+          lidar->data.rd_idx = 0;
+          lidar->data.wr_idx = 0;
+      }
+      lidar->imu_data.Clear();
+      lidar->connect_state = kConnectStateOff;
+    }
+  } else {
+      printf("PrepareLidarExit failed: could not find index for handle %u\n", handle);
+  }
 }
 
 void LdsLidar::PrepareExit(void) { DeInitLdsLidar(); }

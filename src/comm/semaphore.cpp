@@ -38,4 +38,13 @@ void Semaphore::Wait() {
   --count_;
 }
 
+bool Semaphore::TimedWait(int timeout_ms) {
+  std::unique_lock<std::mutex> lock(mutex_);
+  if (cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms), [=] { return count_ > 0; })) {
+    --count_;
+    return true;
+  }
+  return false;
+}
+
 } // namespace livox_ros
