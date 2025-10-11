@@ -205,6 +205,7 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_shutdown(const rc
 
 void DriverNode::TickDiagnostic() {
   if (diagnostic_updater_) {
+    diagnostic_updater_->TickFrequencyStatus();
     last_published_steady_clock_ = std::chrono::steady_clock::now();
   }
 }
