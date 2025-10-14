@@ -210,6 +210,10 @@ void DriverNode::TickDiagnostic() {
 
 void DriverNode::updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& status) {
   status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "All LiDARs are streaming");
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0be5d2aa94a0da1cc66e50f4a46ba918123f363b
   if (lddc_ptr_ && lddc_ptr_->lds_) {
       int configured_lidar_count = 0;
       bool has_error = false;
