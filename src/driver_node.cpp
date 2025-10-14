@@ -210,7 +210,6 @@ void DriverNode::TickDiagnostic() {
 
 void DriverNode::updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& status) {
   status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "All LiDARs are streaming");
-
   if (lddc_ptr_ && lddc_ptr_->lds_) {
       int configured_lidar_count = 0;
       bool has_error = false;
@@ -234,9 +233,13 @@ void DriverNode::updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& 
               const uint64_t last_ns = lidar.last_data_ns.load(std::memory_order_relaxed);
               const auto last_tp = std::chrono::steady_clock::time_point(std::chrono::nanoseconds(last_ns));
               auto time_diff = std::chrono::steady_clock::now() - last_tp;
-              if (time_diff > std::chrono::seconds(2)) {
+              if (time_diff > std::chrono::seconds(1)) {
                   state_str = "Timeout";
                   current_lidar_ok = false;
+              } else if (time_diff > std::chrono::milliseconds(300)) {
+                  state_str = "Sampling";
+                  RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 500,
+                                       "LiDAR Warning on IP %s: %s", ip_addr.c_str(), state_str.c_str());
               } else {
                   state_str = "Sampling";
               }
