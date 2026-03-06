@@ -35,7 +35,6 @@ namespace livox_ros {
 /** Send pointcloud message Data to ros subscriber or save them in rosbag file */
 typedef enum {
   kOutputToRos = 0,
-  kOutputToRosBagFile = 1,
 } DestinationOfMessageOutput;
 
 /** The message type of transfer */
@@ -68,14 +67,12 @@ class Lddc final {
   int RegisterLds(Lds *lds);
   void DistributePointCloudData(void);
   void DistributeImuData(void);
-  void CreateBagFile(const std::string &file_name);
   void PrepareExit(void);
 
   uint8_t GetTransferFormat(void) { return transfer_format_; }
   uint8_t IsMultiTopic(void) { return use_multi_topic_; }
   void SetRosNode(livox_ros::DriverNode *node) { cur_node_ = node; }
 
-  // void SetRosPub(ros::Publisher *pub) { global_pub_ = pub; };  // NOT USED
   void SetPublishFrq(uint32_t frq) { publish_frq_ = frq; }
 
  public:

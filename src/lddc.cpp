@@ -54,7 +54,6 @@ Lddc::Lddc(int format, int multi_topic, int data_src, int output_type,
 
 Lddc::~Lddc() {
   PrepareExit();
-  std::cout << "lddc destory!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
 }
 
 int Lddc::RegisterLds(Lds *lds) {
@@ -537,9 +536,6 @@ std::shared_ptr<rclcpp::PublisherBase> Lddc::GetCurrentImuPublisher(uint8_t hand
     }
     return global_imu_pub_;
   }
-}
-
-void Lddc::CreateBagFile(const std::string &file_name) {
 }
 
 }  // namespace livox_ros
