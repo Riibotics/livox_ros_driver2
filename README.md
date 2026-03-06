@@ -1,5 +1,77 @@
 # Livox ROS Driver 2
 
+> This repository is a fork of the [official Livox ROS Driver 2](https://github.com/Livox-SDK/livox_ros_driver2) with additional features for multi-LiDAR deployment and production use.
+
+## Riibotics Extended Features
+
+### LifecycleNode
+
+드라이버 노드가 ROS 2 LifecycleNode로 동작합니다. `on_configure` / `on_activate` / `on_deactivate` / `on_cleanup` / `on_shutdown` 상태 전이를 지원하므로, 런타임에 LiDAR를 안전하게 시작/중지/재설정할 수 있습니다.
+
+`rclcpp_lifecycle::LifecycleNode`을 상속하며, composition 방식의 실행도 지원합니다.
+
+### Sensor ID 기반 토픽 네이밍
+
+`multi_topic`을 활성화한 상태에서 config JSON의 각 LiDAR에 `sensor_id`를 지정하면, IP 기반 토픽 대신 의미 있는 이름의 토픽이 생성됩니다.
+
+**config 예시:**
+
+```json
+"lidar_configs" : [
+  {
+    "sensor_id" : "front",
+    "ip" : "192.168.1.210",
+    ...
+  },
+  {
+    "sensor_id" : "left",
+    "ip" : "192.168.1.211",
+    ...
+  }
+]
+```
+
+**결과 토픽:**
+
+| 토픽 | 설명 |
+|---|---|
+| `/front/livox/lidar` | front LiDAR pointcloud |
+| `/front/livox/imu` | front LiDAR IMU |
+| `/left/livox/lidar` | left LiDAR pointcloud |
+| `/left/livox/imu` | left LiDAR IMU |
+
+`sensor_id`를 생략하면 기존처럼 IP 기반 토픽(`livox/lidar_192_168_1_210`)이 사용됩니다.
+
+`frame_id`도 `sensor_id`에 맞게 자동 설정됩니다 (pointcloud: `front`, IMU: `front_imu`).
+
+### LiDAR 수량 명시 (`lidar_count`)
+
+config JSON의 `lidar_summary_info`에 `lidar_count`를 명시하여 연결할 LiDAR 수를 지정할 수 있습니다. 생략하면 `lidar_configs` 배열 크기로 자동 결정됩니다.
+
+```json
+"lidar_summary_info" : {
+  "lidar_type": 8,
+  "lidar_count": 3
+}
+```
+
+### Diagnostic 모니터링
+
+`diagnostic_updater`를 통해 각 LiDAR의 연결 상태를 실시간으로 모니터링합니다.
+
+- 각 LiDAR의 연결 상태 (`Sampling` / `Disconnected` / `Timeout`)를 `/diagnostics` 토픽으로 publish
+- 데이터 수신이 1초 이상 없으면 `Timeout`, 연결 자체가 안 되면 `Disconnected`로 보고
+- `ros2 topic echo /diagnostics` 또는 `rqt_robot_monitor`로 확인 가능
+
+### Composition 지원
+
+`rclcpp_components`로 등록되어 있어 component container에서 로드할 수 있습니다. 메시지 publish 시 zero-copy를 위해 `unique_ptr`로 전달합니다. QoS는 `rmw_qos_profile_sensor_data`를 사용합니다.
+
+---
+
+<details>
+<summary><b>Original README (Livox Official)</b></summary>
+
 Livox ROS Driver 2 is the 2nd-generation driver package used to connect LiDAR products produced by Livox, applicable for ROS (noetic recommended) and ROS2 (foxy or humble recommended).
 
   **Note :**
@@ -83,10 +155,10 @@ source ../../devel/setup.sh
 roslaunch livox_ros_driver2 [launch file]
 ```
 
-in which,  
+in which,
 
 * **livox_ros_driver2** : is the ROS package name of Livox ROS Driver 2;
-* **[launch file]** : is the ROS launch file you want to use; the 'launch_ROS1' folder contains several launch samples for your reference;  
+* **[launch file]** : is the ROS launch file you want to use; the 'launch_ROS1' folder contains several launch samples for your reference;
 
 An rviz launch example for HAP LiDAR would be:
 
@@ -100,7 +172,7 @@ source ../../install/setup.sh
 ros2 launch livox_ros_driver2 [launch file]
 ```
 
-in which,  
+in which,
 
 * **[launch file]** : is the ROS2 launch file you want to use; the 'launch_ROS2' folder contains several launch samples for your reference.
 
@@ -360,3 +432,5 @@ Please add '/usr/local/lib' to the env LD_LIBRARY_PATH.
   export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/lib
   source ~/.bashrc
   ```
+
+</details>
