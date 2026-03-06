@@ -183,9 +183,7 @@ bool LdsLidar::ParseSummaryConfig() {
 }
 
 bool LdsLidar::InitLivoxLidar() {
-#ifdef BUILDING_ROS2
   DisableLivoxSdkConsoleLogger();
-#endif
 
   // parse user config
   LivoxLidarConfigParser parser(path_);
