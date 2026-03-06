@@ -21,6 +21,7 @@
   <depend>libpcl-all-dev</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>diagnostic_updater</depend>
+  <depend>lifecycle_msgs</depend>
 
   <exec_depend>rosbag2</exec_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>

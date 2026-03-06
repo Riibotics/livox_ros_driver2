@@ -193,7 +193,10 @@ DriverNode::CallbackReturn DriverNode::on_cleanup(const rclcpp_lifecycle::State 
 
 DriverNode::CallbackReturn DriverNode::on_shutdown(const rclcpp_lifecycle::State & /*state*/) {
   RCLCPP_INFO(get_logger(), "Node is shutting down, finalizing SDK.");
-  exit_signal_.set_value();
+  if (future_.valid() &&
+      future_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+    exit_signal_.set_value();
+  }
 
   if (pointclouddata_poll_thread_ && pointclouddata_poll_thread_->joinable()) {
     pointclouddata_poll_thread_->join();
