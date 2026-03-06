@@ -54,7 +54,7 @@ class DriverNode final : public ros::NodeHandle {
 };
 
 #elif defined BUILDING_ROS2
-class DriverNode final : public rii_common_utils::LifecycleNode {
+class DriverNode final : public rclcpp_lifecycle::LifecycleNode {
  public:
   explicit DriverNode(const rclcpp::NodeOptions& options);
   DriverNode(const DriverNode &) = delete;
@@ -66,13 +66,23 @@ class DriverNode final : public rii_common_utils::LifecycleNode {
   void TickDiagnostic();
 
  protected:
-  rii_common_utils::LifecycleNode::CallbackReturn on_configure(const rclcpp_lifecycle::State & state) override;
-  rii_common_utils::LifecycleNode::CallbackReturn on_activate(const rclcpp_lifecycle::State & state) override;
-  rii_common_utils::LifecycleNode::CallbackReturn on_deactivate(const rclcpp_lifecycle::State & state) override;
-  rii_common_utils::LifecycleNode::CallbackReturn on_cleanup(const rclcpp_lifecycle::State & state) override;
-  rii_common_utils::LifecycleNode::CallbackReturn on_shutdown(const rclcpp_lifecycle::State & state) override;
+  using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+
+  CallbackReturn on_configure(const rclcpp_lifecycle::State & state) override;
+  CallbackReturn on_activate(const rclcpp_lifecycle::State & state) override;
+  CallbackReturn on_deactivate(const rclcpp_lifecycle::State & state) override;
+  CallbackReturn on_cleanup(const rclcpp_lifecycle::State & state) override;
+  CallbackReturn on_shutdown(const rclcpp_lifecycle::State & state) override;
 
   void updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& status);
+
+  template<typename T>
+  void DeclareAndGetParameter(const std::string& name, const T& default_value, T& out) {
+    if (!this->has_parameter(name)) {
+      this->declare_parameter<T>(name, default_value);
+    }
+    this->get_parameter(name, out);
+  }
 
  private:
   void PointCloudDataPollThread();

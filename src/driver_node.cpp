@@ -32,14 +32,13 @@ namespace livox_ros {
 #ifdef BUILDING_ROS2
 
 DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
-: rii_common_utils::LifecycleNode("livox_driver_node", "", node_options)
+: rclcpp_lifecycle::LifecycleNode("livox_driver_node", "", node_options)
 {
   DRIVER_INFO(*this, "Livox Ros Driver2 Version: %s", LIVOX_ROS_DRIVER2_VERSION_STRING);
   future_ = exit_signal_.get_future();
 }
 
 DriverNode::~DriverNode() {
-  // Signal threads to exit in case of unexpected shutdown
   if (future_.valid() &&
     future_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
     exit_signal_.set_value();
@@ -57,7 +56,7 @@ DriverNode& DriverNode::GetNode() noexcept {
   return *this;
 }
 
-rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_configure(const rclcpp_lifecycle::State & /*state*/) {
+DriverNode::CallbackReturn DriverNode::on_configure(const rclcpp_lifecycle::State & /*state*/) {
   DeclareAndGetParameter<int>("xfer_format", kPointCloud2Msg, xfer_format_);
   DeclareAndGetParameter<int>("multi_topic", 0, multi_topic_);
   DeclareAndGetParameter<int>("data_src", kSourceRawLidar, data_src_);
@@ -73,7 +72,7 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_configure(const r
   } else if (publish_freq_ < 0.5) {
     publish_freq_ = 0.5;
   }
-  
+
   std::string user_config_path;
   this->get_parameter("user_config_path", user_config_path);
   livox_ros::LivoxLidarConfigParser parser(user_config_path);
@@ -83,13 +82,13 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_configure(const r
     RCLCPP_INFO(get_logger(), "Node configured for LiDAR handle: %u", lidar_handle_);
   } else {
     RCLCPP_ERROR(get_logger(), "Failed to parse LiDAR config to get handle: %s", user_config_path.c_str());
-    return rii_common_utils::LifecycleNode::CallbackReturn::FAILURE;
+    return CallbackReturn::FAILURE;
   }
 
-  return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
+  return CallbackReturn::SUCCESS;
 }
 
-rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_activate(const rclcpp_lifecycle::State & /*state*/) {
+DriverNode::CallbackReturn DriverNode::on_activate(const rclcpp_lifecycle::State & /*state*/) {
   lddc_ptr_ = std::make_unique<Lddc>(xfer_format_, multi_topic_, data_src_, output_type_, publish_freq_, frame_id_);
   lddc_ptr_->SetRosNode(this);
 
@@ -107,11 +106,11 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_activate(const rc
       DRIVER_INFO(*this, "Init lds lidar success!");
     } else {
       DRIVER_ERROR(*this, "Init lds lidar fail!");
-      return rii_common_utils::LifecycleNode::CallbackReturn::FAILURE;
+      return CallbackReturn::FAILURE;
     }
   } else {
     DRIVER_ERROR(*this, "Invalid data src (%d), please check the launch file", data_src_);
-    return rii_common_utils::LifecycleNode::CallbackReturn::FAILURE;
+    return CallbackReturn::FAILURE;
   }
 
   rii_common_utils::DiagnosticUpdaterBuilder builder(this);
@@ -136,10 +135,10 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_activate(const rc
 
   pointclouddata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::PointCloudDataPollThread, this);
   imudata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::ImuDataPollThread, this);
-  return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
+  return CallbackReturn::SUCCESS;
 }
 
-rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_deactivate(const rclcpp_lifecycle::State & /*state*/) {
+DriverNode::CallbackReturn DriverNode::on_deactivate(const rclcpp_lifecycle::State & /*state*/) {
   if (future_.valid() && future_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
     exit_signal_.set_value();
   }
@@ -148,12 +147,12 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_deactivate(const 
       lddc_ptr_->lds_->pcd_semaphore_.Signal();
       lddc_ptr_->lds_->imu_semaphore_.Signal();
   }
-  
+
   RCLCPP_INFO(get_logger(), "Node is deactivated, polling threads signaled to stop.");
-  return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
+  return CallbackReturn::SUCCESS;
 }
 
-rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_cleanup(const rclcpp_lifecycle::State & /*state*/) {
+DriverNode::CallbackReturn DriverNode::on_cleanup(const rclcpp_lifecycle::State & /*state*/) {
   if (pointclouddata_poll_thread_ && pointclouddata_poll_thread_->joinable()) {
     pointclouddata_poll_thread_->join();
     pointclouddata_poll_thread_.reset();
@@ -175,12 +174,12 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_cleanup(const rcl
 
   exit_signal_ = std::promise<void>();
   future_ = exit_signal_.get_future();
-  
+
   RCLCPP_INFO(get_logger(), "Node is cleaned up.");
-  return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
+  return CallbackReturn::SUCCESS;
 }
 
-rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_shutdown(const rclcpp_lifecycle::State & /*state*/) {
+DriverNode::CallbackReturn DriverNode::on_shutdown(const rclcpp_lifecycle::State & /*state*/) {
   RCLCPP_INFO(get_logger(), "Node is shutting down, finalizing SDK.");
   exit_signal_.set_value();
 
@@ -199,7 +198,7 @@ rii_common_utils::LifecycleNode::CallbackReturn DriverNode::on_shutdown(const rc
   lddc_ptr_.reset();
   diagnostic_updater_.reset();
 
-  return rii_common_utils::LifecycleNode::CallbackReturn::SUCCESS;
+  return CallbackReturn::SUCCESS;
 }
 
 void DriverNode::TickDiagnostic() {
