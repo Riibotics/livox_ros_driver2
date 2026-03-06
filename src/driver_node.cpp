@@ -113,15 +113,26 @@ DriverNode::CallbackReturn DriverNode::on_activate(const rclcpp_lifecycle::State
     return CallbackReturn::FAILURE;
   }
 
-  rii_common_utils::DiagnosticUpdaterBuilder builder(this);
-  diagnostic_updater_ = builder.SetPeriodInSec(0.5)
-                           .SetHardwareID("Livox_MID360")
-                           .EnableStatusUpdate()
-                           .EnableFrequencyUpdate(publish_freq_)
-                           .RegisterCustomUpdaterFunction("LiDAR Status",
-                                                          std::bind(&DriverNode::updateLidarStatus, this, std::placeholders::_1))
-                           .Build();
+  // Diagnostic updater (period=0.5s)
+  diagnostic_updater_ = std::make_shared<diagnostic_updater::Updater>(this, 0.5);
+  diagnostic_updater_->setHardwareID("Livox_MID360");
 
+  // Frequency monitoring (matches rii_common_utils: tolerance=0.1, window=max(10, freq))
+  min_freq_ptr_ = std::make_shared<double>(publish_freq_);
+  max_freq_ptr_ = std::make_shared<double>(publish_freq_);
+  diagnostic_updater::FrequencyStatusParam freq_params(
+      min_freq_ptr_.get(), max_freq_ptr_.get(), 0.1,
+      std::max(10., publish_freq_));
+  frequency_status_ = std::make_shared<diagnostic_updater::FrequencyStatus>(freq_params, "frequency");
+  diagnostic_updater_->add(*frequency_status_);
+
+  // Working status task
+  diagnostic_updater_->add("working_status",
+      std::bind(&DriverNode::WorkingStatusUpdaterFunction, this, std::placeholders::_1));
+
+  // Custom LiDAR status task
+  diagnostic_updater_->add("LiDAR Status",
+      std::bind(&DriverNode::updateLidarStatus, this, std::placeholders::_1));
 
   if (pointclouddata_poll_thread_ && pointclouddata_poll_thread_->joinable()) {
     pointclouddata_poll_thread_->join();
@@ -171,6 +182,7 @@ DriverNode::CallbackReturn DriverNode::on_cleanup(const rclcpp_lifecycle::State 
   }
   lddc_ptr_.reset();
   diagnostic_updater_.reset();
+  frequency_status_.reset();
 
   exit_signal_ = std::promise<void>();
   future_ = exit_signal_.get_future();
@@ -197,14 +209,25 @@ DriverNode::CallbackReturn DriverNode::on_shutdown(const rclcpp_lifecycle::State
 
   lddc_ptr_.reset();
   diagnostic_updater_.reset();
+  frequency_status_.reset();
 
   return CallbackReturn::SUCCESS;
 }
 
 void DriverNode::TickDiagnostic() {
-  if (diagnostic_updater_) {
-    diagnostic_updater_->TickFrequencyStatus();
+  if (frequency_status_) {
+    frequency_status_->tick();
   }
+}
+
+void DriverNode::WorkingStatusUpdaterFunction(diagnostic_updater::DiagnosticStatusWrapper& stat) {
+  stat.add("namespace", this->get_namespace());
+  DiagStatus status;
+  {
+    std::lock_guard<std::mutex> lock(working_status_mutex_);
+    status = working_status_;
+  }
+  stat.summary(static_cast<unsigned char>(status.level), status.message);
 }
 
 void DriverNode::updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& status) {
@@ -248,10 +271,14 @@ void DriverNode::updateLidarStatus(diagnostic_updater::DiagnosticStatusWrapper& 
               has_error = true;
               RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
                                     "LiDAR Error on IP %s: %s", ip_addr.c_str(), state_str.c_str());
-              diagnostic_updater_->SetStatusERROR("Lidar has a problem");
+              {
+                std::lock_guard<std::mutex> lock(working_status_mutex_);
+                working_status_ = {WorkingStatus::ERROR, "Lidar has a problem"};
+              }
           }
           else {
-            diagnostic_updater_->SetStatusOK("OK");
+            std::lock_guard<std::mutex> lock(working_status_mutex_);
+            working_status_ = {WorkingStatus::OK, "OK"};
           }
 
           status.add(lidar_id, "IP: " + ip_addr + ", State: " + state_str);

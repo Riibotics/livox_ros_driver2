@@ -27,7 +27,9 @@
 
 #include "include/ros_headers.h"
 
-#include "rii_common_utils/diagnostic_updater.h" 
+#include <diagnostic_updater/diagnostic_updater.hpp>
+#include <diagnostic_updater/update_functions.hpp>
+#include <mutex>
 
 namespace livox_ros {
 
@@ -88,6 +90,24 @@ class DriverNode final : public rclcpp_lifecycle::LifecycleNode {
   void PointCloudDataPollThread();
   void ImuDataPollThread();
 
+  // Working status (thread-safe, read by diagnostic updater)
+  void WorkingStatusUpdaterFunction(diagnostic_updater::DiagnosticStatusWrapper& stat);
+
+  enum class WorkingStatus : uint8_t {
+    OK = diagnostic_msgs::msg::DiagnosticStatus::OK,
+    WARN = diagnostic_msgs::msg::DiagnosticStatus::WARN,
+    ERROR = diagnostic_msgs::msg::DiagnosticStatus::ERROR,
+    STALE = diagnostic_msgs::msg::DiagnosticStatus::STALE
+  };
+
+  struct DiagStatus {
+    WorkingStatus level;
+    std::string message;
+  };
+
+  DiagStatus working_status_{WorkingStatus::STALE, "Default status"};
+  std::mutex working_status_mutex_;
+
   std::unique_ptr<Lddc> lddc_ptr_;
   std::shared_ptr<std::thread> pointclouddata_poll_thread_;
   std::shared_ptr<std::thread> imudata_poll_thread_;
@@ -101,10 +121,13 @@ class DriverNode final : public rclcpp_lifecycle::LifecycleNode {
   double publish_freq_; /* Hz */
   int output_type_;
   std::string frame_id_;
-  uint32_t lidar_handle_ = 0; // LiDAR 핸들을 저장할 변수
+  uint32_t lidar_handle_ = 0;
 
   // Diagnostic updater
-  std::unique_ptr<rii_common_utils::DiagnosticUpdater> diagnostic_updater_;
+  std::shared_ptr<diagnostic_updater::Updater> diagnostic_updater_;
+  std::shared_ptr<double> min_freq_ptr_;
+  std::shared_ptr<double> max_freq_ptr_;
+  std::shared_ptr<diagnostic_updater::FrequencyStatus> frequency_status_;
 };
 
 #endif
