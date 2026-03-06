@@ -231,6 +231,7 @@ else(ROS_EDITION STREQUAL "ROS2")
   find_package(std_msgs REQUIRED)
   find_package(builtin_interfaces REQUIRED)
   find_package(rosidl_default_generators REQUIRED)
+  find_package(lifecycle_msgs REQUIRED)
 
   # check apr
   find_package(PkgConfig)
@@ -320,8 +321,9 @@ else(ROS_EDITION STREQUAL "ROS2")
   add_executable (${PROJECT_NAME}_node
     src/main.cpp
   )
-  
+
   target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME})
+  ament_target_dependencies(${PROJECT_NAME}_node lifecycle_msgs)
 
 
   if(BUILD_TESTING)

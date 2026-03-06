@@ -19,7 +19,9 @@
   <depend>pcl_conversions</depend>
   <depend>rcl_interfaces</depend>
   <depend>libpcl-all-dev</depend>
-  <depend>rii_common_utils</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>diagnostic_updater</depend>
+  <depend>lifecycle_msgs</depend>
 
   <exec_depend>rosbag2</exec_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
