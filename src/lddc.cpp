@@ -286,7 +286,7 @@ void Lddc::InitPointcloud2Msg(const uint8_t& index, const StoragePacket& pkg, Po
     timestamp = pkg.base_time;
   }
 
-  cloud.header.stamp = rclcpp::Time(timestamp);
+  cloud.header.stamp = rclcpp::Time(static_cast<int64_t>(timestamp));
 
   std::vector<LivoxPointXyzrtlt> points;
   for (size_t i = 0; i < pkg.points_num; ++i) {
@@ -337,7 +337,7 @@ void Lddc::InitCustomMsg(CustomMsg& livox_msg, const StoragePacket& pkg, uint8_t
   }
   livox_msg.timebase = timestamp;
 
-  livox_msg.header.stamp = rclcpp::Time(timestamp);
+  livox_msg.header.stamp = rclcpp::Time(static_cast<int64_t>(timestamp));
 
   livox_msg.point_num = pkg.points_num;
   if (lds_->lidars_[index].lidar_type == kLivoxLidarType) {
@@ -414,7 +414,7 @@ void Lddc::InitImuMsg(const uint8_t& index, const ImuData& imu_data, ImuMsg& imu
   imu_msg.header.frame_id = frame_id;
 
   timestamp = imu_data.time_stamp;
-  imu_msg.header.stamp = rclcpp::Time(timestamp);  // to ros time stamp
+  imu_msg.header.stamp = rclcpp::Time(static_cast<int64_t>(timestamp));  // to ros time stamp
 
   imu_msg.angular_velocity.x = imu_data.gyro_x;
   imu_msg.angular_velocity.y = imu_data.gyro_y;
