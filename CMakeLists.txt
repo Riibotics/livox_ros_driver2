@@ -24,11 +24,6 @@ include(cmake/version.cmake)
 project(${PROJECT_NAME} VERSION ${LIVOX_ROS_DRIVER2_VERSION} LANGUAGES CXX)
 message(STATUS "${PROJECT_NAME} version: ${LIVOX_ROS_DRIVER2_VERSION}")
 
-#---------------------------------------------------------------------------------------
-# Add ROS Version MACRO
-#---------------------------------------------------------------------------------------
-add_definitions(-DBUILDING_ROS2)
-
 # find dependencies
 # uncomment the following section in order to fill in
 # further dependencies manually.
@@ -158,5 +153,5 @@ ament_export_libraries(${PROJECT_NAME})
 
 ament_auto_package(INSTALL_TO_SHARE
   config
-  launch_ROS2
+  launch
 )
