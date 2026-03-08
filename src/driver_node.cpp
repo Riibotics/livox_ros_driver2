@@ -29,8 +29,6 @@
 
 namespace livox_ros {
 
-#ifdef BUILDING_ROS2
-
 DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
 : rclcpp_lifecycle::LifecycleNode("livox_driver_node", "", node_options)
 {
@@ -321,7 +319,5 @@ void DriverNode::ImuDataPollThread()
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 }
-
-#endif // BUILDING_ROS2
 
 } // namespace livox_ros
